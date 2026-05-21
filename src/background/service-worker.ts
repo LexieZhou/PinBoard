@@ -2,6 +2,7 @@ import { extractLocations } from "../lib/triton";
 import { geocodeMany } from "../lib/places";
 import { addPins } from "../lib/pin-store";
 import type {
+  ExtractedLocation,
   PageContent,
   Pin,
   PinResponse,
@@ -53,7 +54,7 @@ async function handleScan(): Promise<ScanResponse> {
 }
 
 async function handlePin(
-  locations: { name: string; contextSnippet: string }[],
+  locations: ExtractedLocation[],
   pageContent: PageContent,
   targetListId: string,
 ): Promise<PinResponse> {
@@ -73,6 +74,7 @@ async function handlePin(
       contextSnippet: g.contextSnippet,
       savedAt: now,
       listIds: [targetListId],
+      category: g.category ?? "other",
     }));
     const merged = await addPins(newPins, targetListId);
     return { ok: true, pins: merged };

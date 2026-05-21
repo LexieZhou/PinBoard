@@ -12,9 +12,9 @@ type PlacesResponse = {
 };
 
 export async function geocodeOne(
-  name: string,
+  query: string,
   apiKey: string,
-): Promise<Omit<GeocodedLocation, "name" | "contextSnippet"> | null> {
+): Promise<Omit<GeocodedLocation, "name" | "contextSnippet" | "category"> | null> {
   if (!apiKey) throw new Error("Missing VITE_GOOGLE_MAPS_API_KEY");
 
   const resp = await fetch(PLACES_URL, {
@@ -25,7 +25,7 @@ export async function geocodeOne(
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.formattedAddress,places.location",
     },
-    body: JSON.stringify({ textQuery: name, maxResultCount: 1 }),
+    body: JSON.stringify({ textQuery: query, maxResultCount: 1 }),
   });
 
   if (!resp.ok) {
@@ -48,12 +48,14 @@ export async function geocodeOne(
 export async function geocodeMany(
   locations: ExtractedLocation[],
   apiKey: string,
-  _cityHint?: string,
+  cityHint?: string,
 ): Promise<GeocodedLocation[]> {
   const out: GeocodedLocation[] = [];
   for (const loc of locations) {
+    const geo = loc.region || cityHint;
+    const query = geo ? `${loc.name}, ${geo}` : loc.name;
     try {
-      const g = await geocodeOne(loc.name, apiKey);
+      const g = await geocodeOne(query, apiKey);
       if (g) out.push({ ...loc, ...g });
     } catch (err) {
       console.warn(`geocode failed for ${loc.name}:`, err);

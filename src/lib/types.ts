@@ -1,3 +1,5 @@
+export type PlaceCategory = "food" | "hotel" | "attraction" | "other";
+
 export type List = {
   id: string;
   name: string;
@@ -16,11 +18,14 @@ export type Pin = {
   contextSnippet: string;
   savedAt: string;
   listIds: string[];
+  category: PlaceCategory;
 };
 
 export type ExtractedLocation = {
   name: string;
   contextSnippet: string;
+  region?: string;
+  category: PlaceCategory;
 };
 
 export type PageContent = {

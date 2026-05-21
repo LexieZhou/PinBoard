@@ -1,16 +1,18 @@
-import type { ExtractedLocation } from "./types";
+import type { ExtractedLocation, PlaceCategory } from "./types";
 
 const TRITON_BASE = "https://tritonai-api.ucsd.edu/v1";
 const MODEL = "api-gpt-oss-120b";
 
 const SYSTEM_PROMPT = `You extract specific named geographic places from travel content.
-Return JSON ONLY in this exact shape: {"places": [{"name": string, "context": string}]}.
+Return JSON ONLY in this exact shape: {"places": [{"name": string, "context": string, "region": string, "category": string}]}.
 
 Rules:
-- Include only SPECIFIC named places: restaurants, shops, hotels, landmarks, parks, neighborhoods, museums, beaches, viewpoints.
+- Include only SPECIFIC named places: restaurants, cafes, shops, hotels, landmarks, parks, museums, beaches, viewpoints.
 - EXCLUDE generic terms ("the park", "downtown", "the airport") unless they appear as proper nouns ("Central Park").
-- EXCLUDE cities/countries used only as broad context ("trip to Japan") — but DO include them if they are the subject of a recommendation
+- EXCLUDE cities/countries used only as broad context ("trip to Japan") — but DO include them if they are the subject of a recommendation.
 - "context" is a short snippet (<=120 chars) from the source text that mentions or describes the place.
+- "region" is the city and country where this specific place is located, inferred from the surrounding text (e.g. "Shibuya, Tokyo, Japan" or "Brooklyn, New York, USA"). Use the most specific geographic scope you can confidently infer. If truly unknown, use "".
+- "category" must be exactly one of: "food" (restaurants, cafes, bars, food markets, street food), "hotel" (hotels, hostels, ryokans, guesthouses, resorts), "attraction" (landmarks, museums, parks, beaches, temples, viewpoints, shops), or "other" (anything that doesn't fit).
 - If there are no specific places, return {"places": []}.
 - Do NOT invent places that aren't in the text.`;
 
@@ -72,17 +74,26 @@ function parsePlacesJson(raw: string): ExtractedLocation[] {
   const places = (parsed as { places?: unknown })?.places;
   if (!Array.isArray(places)) return [];
 
+  const VALID_CATEGORIES = new Set<PlaceCategory>(["food", "hotel", "attraction", "other"]);
+
   const seen = new Set<string>();
   const out: ExtractedLocation[] = [];
   for (const p of places) {
     const name = typeof (p as { name?: unknown }).name === "string" ? (p as { name: string }).name.trim() : "";
     const context =
       typeof (p as { context?: unknown }).context === "string" ? (p as { context: string }).context.trim() : "";
+    const region =
+      typeof (p as { region?: unknown }).region === "string" ? (p as { region: string }).region.trim() : undefined;
+    const rawCat = (p as { category?: unknown }).category;
+    const category: PlaceCategory =
+      typeof rawCat === "string" && VALID_CATEGORIES.has(rawCat as PlaceCategory)
+        ? (rawCat as PlaceCategory)
+        : "other";
     if (!name) continue;
     const key = name.toLowerCase();
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push({ name, contextSnippet: context });
+    out.push({ name, contextSnippet: context, region: region || undefined, category });
   }
   return out;
 }

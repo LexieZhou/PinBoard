@@ -19,6 +19,7 @@ import type {
   PinResponse,
   ScanResponse,
 } from "../lib/types";
+import { CATEGORY_CONFIG } from "../lib/categories";
 
 type Phase =
   | { kind: "idle" }
@@ -132,6 +133,7 @@ export default function App() {
     if (!confirm(`Remove all pins from "${activeList.name}"?`)) return;
     const next = await clearActiveList(activeListId);
     setPins(next);
+    setPhase({ kind: "idle" });
   }
 
   return (
@@ -148,12 +150,21 @@ export default function App() {
           </div>
         </div>
         {visiblePins.length > 0 && (
-          <button
-            onClick={handleClearActive}
-            className="text-[11px] text-zinc-400 hover:text-rose-500"
-          >
-            clear list
-          </button>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => exportKML(visiblePins, activeList?.name ?? "pins")}
+              className="text-[11px] text-zinc-400 hover:text-blue-500"
+              title="Export as KML for Google Maps"
+            >
+              export .kml
+            </button>
+            <button
+              onClick={handleClearActive}
+              className="text-[11px] text-zinc-400 hover:text-rose-500"
+            >
+              clear list
+            </button>
+          </div>
         )}
       </header>
 
@@ -248,6 +259,7 @@ function ActionPanel({
         <ul className="space-y-1.5 mb-3">
           {phase.locations.map((loc, i) => {
             const checked = phase.selected.has(i);
+            const cat = CATEGORY_CONFIG[loc.category ?? "other"];
             return (
               <li key={`${loc.name}-${i}`}>
                 <label className="flex items-start gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-zinc-50">
@@ -257,8 +269,16 @@ function ActionPanel({
                     onChange={() => onToggle(i)}
                     className="mt-0.5 accent-rose-500"
                   />
-                  <div className="min-w-0">
-                    <div className="text-xs font-medium leading-tight truncate">{loc.name}</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      <span
+                        style={{ background: cat.bg }}
+                        className="inline-flex items-center gap-0.5 rounded-full px-1.5 py-px text-[9px] font-semibold text-white leading-tight"
+                      >
+                        {cat.emoji} {cat.label}
+                      </span>
+                      <span className="text-xs font-medium leading-tight truncate">{loc.name}</span>
+                    </div>
                     {loc.contextSnippet && (
                       <div className="text-[10px] text-zinc-500 leading-snug line-clamp-2">
                         {loc.contextSnippet}
@@ -311,27 +331,37 @@ function ActionPanel({
             Pins in {activeListName}
           </div>
           <ul className="space-y-1">
-            {recentPins.map((p) => (
-              <li
-                key={p.id}
-                className="group flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-zinc-50"
-              >
-                <div className="min-w-0 flex-1">
-                  <div className="text-xs font-medium truncate">{p.name}</div>
-                  {p.address && (
-                    <div className="text-[10px] text-zinc-500 truncate">{p.address}</div>
-                  )}
-                </div>
-                <button
-                  onClick={() => onRemove(p.id)}
-                  className="text-[10px] text-zinc-300 group-hover:text-rose-500"
-                  title="Remove from this list"
-                  aria-label="Remove from this list"
+            {recentPins.map((p) => {
+              const cat = CATEGORY_CONFIG[p.category ?? "other"];
+              return (
+                <li
+                  key={p.id}
+                  className="group flex items-start gap-2 rounded-md px-2 py-1.5 hover:bg-zinc-50"
                 >
-                  ✕
-                </button>
-              </li>
-            ))}
+                  <span
+                    style={{ background: cat.bg }}
+                    className="mt-0.5 shrink-0 inline-flex items-center justify-center rounded-full w-5 h-5 text-[11px]"
+                    title={cat.label}
+                  >
+                    {cat.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-medium truncate">{p.name}</div>
+                    {p.address && (
+                      <div className="text-[10px] text-zinc-500 truncate">{p.address}</div>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => onRemove(p.id)}
+                    className="text-[10px] text-zinc-300 group-hover:text-rose-500"
+                    title="Remove from this list"
+                    aria-label="Remove from this list"
+                  >
+                    ✕
+                  </button>
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : (
@@ -341,6 +371,37 @@ function ActionPanel({
       )}
     </div>
   );
+}
+
+function exportKML(pins: Pin[], listName: string) {
+  const esc = (s: string) =>
+    s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
+  const placemarks = pins
+    .map(
+      (p) => `
+    <Placemark>
+      <name>${esc(p.name)}</name>
+      <description>${[p.address, p.contextSnippet, p.sourceUrl].filter(Boolean).map(esc).join("\n")}</description>
+      <Point><coordinates>${p.lng},${p.lat},0</coordinates></Point>
+    </Placemark>`,
+    )
+    .join("");
+
+  const kml = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>${esc(listName)}</name>${placemarks}
+  </Document>
+</kml>`;
+
+  const blob = new Blob([kml], { type: "application/vnd.google-earth.kml+xml" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `${listName.replace(/[^a-z0-9]/gi, "-").toLowerCase() || "pins"}.kml`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function StatusRow({ label, spinning }: { label: string; spinning?: boolean }) {
