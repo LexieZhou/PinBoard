@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "PinBoard Clipper",
+  "version": "0.1.0",
+  "description": "Extract locations from any travel post and drop them as pins on a personal map.",
+  "minimum_chrome_version": "114",
+  "action": {
+    "default_title": "PinBoard Clipper"
+  },
+  "side_panel": {
+    "default_path": "src/popup/popup.html"
+  },
+  "background": {
+    "service_worker": "src/background/service-worker.ts",
+    "type": "module"
+  },
+  "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
+  "host_permissions": [
+    "https://tritonai-api.ucsd.edu/*",
+    "https://places.googleapis.com/*",
+    "https://maps.googleapis.com/*",
+    "<all_urls>"
+  ]
+}
