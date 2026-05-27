@@ -53,7 +53,8 @@ export type RuntimeMessage =
       locations: ExtractedLocation[];
       pageContent: PageContent;
       targetListId: string;
-    };
+    }
+  | { type: "SEND_TO_GMAPS"; pins: Pin[]; listName: string };
 
 export type ScanResponse =
   | { ok: true; result: ScanResult }
@@ -62,3 +63,17 @@ export type ScanResponse =
 export type PinResponse =
   | { ok: true; pins: Pin[] }
   | { ok: false; error: string };
+
+export type GmapsFailure = { name: string; reason: string };
+
+export type GmapsSendResponse =
+  | { ok: true; saved: number; failed: GmapsFailure[] }
+  | { ok: false; error: string };
+
+/** One-way progress ping from the service worker to the side panel during a send. */
+export type GmapsProgressMessage = {
+  type: "GMAPS_PROGRESS";
+  done: number;
+  total: number;
+  name: string;
+};

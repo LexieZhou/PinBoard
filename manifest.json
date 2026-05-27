@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "PinBoard Clipper",
   "version": "0.1.0",
-  "description": "Extract locations from any travel post and drop them as pins on a personal map.",
+  "description": "Extract locations from any travel post, pin them on a personal map, and auto-save them to a Google Maps list.",
   "minimum_chrome_version": "114",
   "action": {
     "default_title": "PinBoard Clipper"

@@ -1,0 +1,746 @@
+           Claude Code v2.1.150
+ ▐▛███▜▌   Sonnet 4.6 · Claude Pro
+▝▜█████▛▘  ~/Desktop/04-student-choice-zhzhou-a4
+  ▘▘ ▝▝    [✻] [✻] [✻] · Share Claude Code and earn $10 in usage credits · /passes
+
+❯ 你就不能县create a list,然后在create list的界面search for a place to          
+  add，这样会不会好一点，think hard，<input class="yXp2o                        
+    fontBodyMedium" aria-haspopup="grid" autocomplete="off" type="text"         
+  role="combobox" aria-controls="ucc-21" aria-expanded="false"                  
+    aria-label="Search for a place to add" id="ucc-23"                          
+  jsaction="focus:pane.wfvdle104.focus; input:pane.wfvdle104.input;             
+                                                                                
+    keydown:pane.wfvdle104.keydown">，<button class="pktOgc fontTitleSmall"     
+  jsaction="pane.wfvdle104.done"><span>Done</span></button>                     
+
+⏺ Let me look at the current automation code and the broader project context
+  first.
+
+  Read 2 files (ctrl+o to expand)
+
+⏺ Let me check the service worker to understand the full calling context.
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Good thinking. The current flow navigates to each place individually, clicks
+  Save, and wrestles with the popup menu every time. The list-first approach
+  would:
+  1. Navigate once to /maps/saved/
+  2. Click "New list", type the name, hit Next
+  3. Use input[aria-label="Search for a place to add"] to add all places in one
+  session
+  4. Click Done
+
+  This is simpler — no isFirst branching, no Save-menu popup, one stable UI
+  context for all places. The main risk is whether the combobox responds to the
+  same setNativeValue + input event trick. I'll implement it now.
+
+  The refactor: three injected functions (setupList, addPlaceToList, finishList)
+   instead of one big navigateAndSave, service worker drives them in sequence
+  with progress still reported per-place.
+
+⏺ Write(src/lib/gmaps-automation.ts)
+  ⎿  Added 151 lines, removed 184 lines
+       1  /**
+       2 - * Google Maps DOM automation.                                 
+       2 + * Google Maps DOM automation — list-first approach.           
+       3   *
+       4 - * `navigateAndSave` is injected into a logged-in google.com/ma
+         -ps tab via                                                     
+       5 - * chrome.scripting.executeScript({ func, args }). Because exec
+         -uteScript                                                      
+       6 - * serializes the function source, it MUST be fully self-contai
+         -ned: every helper                                              
+       7 - * and selector lives inside it and it may not reference any mo
+         -dule-scope symbol.                                             
+       4 + * Three injected phases replace the old per-place navigateAndS
+         +ave:                                                           
+       5 + *   1. setupList(listName)      — open /maps/saved, create the
+         + list, arrive at                                               
+       6 + *                                 the "Search for a place to a
+         +dd" screen.                                                    
+       7 + *   2. addPlaceToList(name, addr) — type one query, pick the f
+         +irst result.                                                   
+       8 + *   3. finishList()             — click Done to save the list.
+       9   *
+       9 - * The whole send runs against ONE already-open Maps tab. Inste
+         -ad of reloading                                                
+      10 - * the tab per place (which made the page flash), we drive Maps
+         -' own search box                                               
+      11 - * to navigate in-SPA — no full reload, so the transition betwe
+         -en places is                                                   
+      12 - * continuous. The first place creates the list; the rest tick 
+         -the same list.                                                 
+      10 + * Each function is injected via chrome.scripting.executeScript
+         +({ func, args })                                               
+      11 + * and MUST be fully self-contained: helpers are duplicated ins
+         +ide each function                                              
+      12 + * because executeScript serializes the function source.       
+      13   *
+      14 - * This is the single fragile surface of the feature — if Googl
+         -e changes the                                                  
+      15 - * Maps UI, the selectors here are what break. Keep all of them
+         - in this file.                                                 
+      16 - *                                                             
+      17 - * Targets the English Maps UI ("Save", "New list", "Create"). 
+         -Non-English UIs                                                
+      18 - * fall back to aria/role structure where possible but are not 
+         -guaranteed.                                                    
+      14 + * Fragile surface: Maps' DOM selectors. Keep all selectors her
+         +e.                                                             
+      15 + * Targets the English Maps UI; aria/role fallbacks used where 
+         +possible.                                                      
+      16   */
+      17  
+      21 -export type SaveResult = { ok: boolean; reason: string };      
+      18 +export type SetupListResult = { ok: boolean; reason: string }; 
+      19 +export type AddPlaceResult = { ok: boolean; reason: string };  
+      20  
+      23 -export async function navigateAndSave(                         
+      24 -  name: string,                                                
+      25 -  address: string,                                             
+      26 -  listName: string,                                            
+      27 -  isFirst: boolean,                                            
+      28 -): Promise<SaveResult> {                                       
+      29 -  const sleep = (ms: number) => new Promise((r) => setTimeout(r
+         -, ms));                                                        
+      21 +// ─── Phase 1 ────────────────────────────────────────────────
+         +─────────────────                                              
+      22  
+      23 +/** Navigate to /maps/saved, create a new list, wait for the pl
+         +ace-search input. */                                           
+      24 +export async function setupList(listName: string): Promise<Setu
+         +pListResult> {                                                 
+      25 +  const sleep = (ms: number) => new Promise<void>((r) => setTim
+         +eout(r, ms));                                                  
+      26 +                                                               
+      27    async function waitFor<T>(
+      28      get: () => T | null | undefined,
+      29      timeoutMs: number,
+     ...
+      41    const visible = (el: Element | null | undefined): boolean =>
+      42      !!el && (el as HTMLElement).offsetParent !== null;
+      43  
+      48 -  const norm = (s: string | null | undefined) => (s ?? "").trim
+         -().toLowerCase();                                              
+      49 -                                                               
+      50 -  function findByText(selector: string, re: RegExp): HTMLElemen
+         -t | null {                                                     
+      51 -    const nodes = Array.from(document.querySelectorAll<HTMLElem
+         -ent>(selector));                                               
+      52 -    return nodes.find((n) => visible(n) && re.test(n.textConten
+         -t || "")) ?? null;                                             
+      53 -  }                                                            
+      54 -                                                               
+      55 -  function detectLoginWall(): boolean {                        
+      56 -    // Only flag as login wall if we were actually redirected t
+         -o the sign-in page.                                            
+      57 -    // Do NOT check for a[href*="accounts.google.com"] — that l
+         -ink is present in                                              
+      58 -    // the Maps header even when fully logged in (profile menu)
+         -, causing false positives.                                     
+      59 -    if (location.hostname === "accounts.google.com") return tru
+         -e;                                                             
+      60 -    return !!document.querySelector('[data-value="Sign in"], [a
+         -ria-label="Sign in"]');                                        
+      61 -  }                                                            
+      62 -                                                               
+      63 -  // Frameworks (incl. Google's) often ignore a plain `.value =
+         -`. Use the native                                              
+      64 -  // setter + input/change events so the field's listeners regi
+         -ster the text.                                                 
+      44    function setNativeValue(el: HTMLInputElement | HTMLTextAreaEl
+          ement, value: string) {
+      45      const proto =
+      46        el instanceof HTMLTextAreaElement
+     ...
+       54      el.dispatchEvent(new Event("change", { bubbles: true }));
+       55    }
+       56  
+       78 -  function findSearchBox(): HTMLInputElement | null {         
+       79 -    const box =                                               
+       80 -      document.querySelector<HTMLInputElement>('input[name="q"
+          -]') ||                                                        
+       81 -      document.querySelector<HTMLInputElement>('input[aria-lab
+          -el*="Search" i]');                                            
+       82 -    return visible(box) ? box : null;                         
+       57 +  function detectLoginWall(): boolean {                       
+       58 +    if (location.hostname === "accounts.google.com") return tr
+          +ue;                                                           
+       59 +    return !!document.querySelector('[data-value="Sign in"], [
+          +aria-label="Sign in"]');                                      
+       60    }
+       61  
+       85 -  function submitSearch(box: HTMLInputElement) {              
+       86 -    const btn = document.querySelector<HTMLElement>('button[ar
+          -ia-label="Search"]');                                         
+       87 -    if (btn && visible(btn)) {                                
+       88 -      btn.click();                                            
+       89 -      return;                                                 
+       90 -    }                                                         
+       91 -    for (const type of ["keydown", "keypress", "keyup"] as con
+          -st) {                                                         
+       92 -      box.dispatchEvent(                                      
+       93 -        new KeyboardEvent(type, {                             
+       94 -          key: "Enter",                                       
+       95 -          code: "Enter",                                      
+       96 -          keyCode: 13,                                        
+       97 -          which: 13,                                          
+       98 -          bubbles: true,                                      
+       99 -        }),                                                   
+      100 -      );                                                      
+      101 -    }                                                         
+      102 -  }                                                           
+       62 +  if (detectLoginWall()) return { ok: false, reason: "not_logg
+          +ed_in" };                                                     
+       63  
+      104 -  function findSaveButton(): HTMLElement | null {             
+      105 -    const btn =                                               
+      106 -      document.querySelector<HTMLElement>('button[data-value="
+          -Save"]') ||                                                   
+      107 -      document.querySelector<HTMLElement>('button[aria-label^=
+          -"Save"]');                                                    
+      108 -    return visible(btn) ? btn : null;                         
+      109 -  }                                                           
+       64 +  // Find "New list" — appears as a button on the /maps/saved/
+          + Lists tab.                                                   
+       65 +  const findNewListBtn = (): HTMLElement | null =>            
+       66 +    Array.from(document.querySelectorAll<HTMLElement>('button,
+          + [role="button"]')).find(                                     
+       67 +      (el) => /new list/i.test(el.textContent || "") && visibl
+          +e(el),                                                        
+       68 +    ) ?? null;                                                
+       69  
+      111 -  function findFirstResult(): HTMLElement | null {            
+      112 -    const link =                                              
+      113 -      document.querySelector<HTMLElement>('a.hfpxzc') ||      
+      114 -      document.querySelector<HTMLElement>('[role="feed"] a[hre
+          -f*="/maps/place/"]') ||                                       
+      115 -      document.querySelector<HTMLElement>('a[href*="/maps/plac
+          -e/"]');                                                       
+      116 -    return visible(link) ? link : null;                       
+       70 +  const newListBtn = await waitFor(findNewListBtn, 9000);     
+       71 +  if (!newListBtn) {                                          
+       72 +    return {                                                  
+       73 +      ok: false,                                              
+       74 +      reason: detectLoginWall() ? "not_logged_in" : "new_list_
+          +button_not_found",                                            
+       75 +    };                                                        
+       76    }
+       77 +  newListBtn.click();                                         
+       78 +  await sleep(600);                                           
+       79  
+      119 -  // 0. Drive Maps' search box to the place — in-SPA navigatio
+          -n, no page reload.                                            
+      120 -  const query = [name, address].filter(Boolean).join(", ");   
+      121 -  const searchBox = await waitFor(findSearchBox, 9000);       
+      122 -  if (!searchBox) {                                           
+      123 -    return { ok: false, reason: detectLoginWall() ? "not_logge
+          -d_in" : "search_box_not_found" };                             
+      124 -  }                                                           
+      125 -  const prevHref = location.href;                             
+      126 -  setNativeValue(searchBox, query);                           
+      127 -  await sleep(250);                                           
+      128 -  submitSearch(searchBox);                                    
+       80 +  // Type the list name into the title input.                 
+       81 +  const nameInput = await waitFor(                            
+       82 +    () =>                                                     
+       83 +      document.querySelector<HTMLInputElement>(               
+       84 +        'input[aria-label*="list title" i], input[placeholder*
+          +="list title" i], input[type="text"]:not([readonly])',        
+       85 +      ),                                                      
+       86 +    5000,                                                     
+       87 +  );                                                          
+       88 +  if (!nameInput) return { ok: false, reason: "name_input_not_
+          +found" };                                                     
+       89 +  setNativeValue(nameInput, listName);                        
+       90 +  await sleep(200);                                           
+       91  
+      130 -  // Wait for Maps to navigate: either straight to a place pan
+          -el (/maps/place/)                                             
+      131 -  // or to a results list (/maps/search/) we then pick the fir
+          -st result from.                                               
+      132 -  const navigated = await waitFor(                            
+       92 +  // Some Maps flows have a "Next" button that advances to the
+          + place-search step.                                           
+       93 +  const nextBtn = await waitFor(                              
+       94      () =>
+      134 -      location.href !== prevHref && /\/maps\/(place|search)\//
+          -.test(location.href)                                          
+      135 -        ? location.href                                       
+      136 -        : null,                                               
+      137 -    12000,                                                    
+       95 +      Array.from(document.querySelectorAll<HTMLElement>('butto
+          +n')).find(                                                    
+       96 +        (b) => /^\s*next\s*$/i.test(b.textContent || "") && vi
+          +sible(b),                                                     
+       97 +      ) ?? null,                                              
+       98 +    2500,                                                     
+       99    );
+      139 -  if (!navigated) {                                           
+      140 -    return { ok: false, reason: detectLoginWall() ? "not_logge
+          -d_in" : "place_not_found" };                                  
+      100 +  if (nextBtn) {                                              
+      101 +    nextBtn.click();                                          
+      102 +    await sleep(600);                                         
+      103    }
+      104  
+      143 -  // If we landed on a results list, open the top result to ge
+          -t a place panel.                                              
+      144 -  if (/\/maps\/search\//.test(location.href) && !findSaveButto
+          -n()) {                                                        
+      145 -    const result = await waitFor(findFirstResult, 6000);      
+      146 -    if (!result) return { ok: false, reason: "place_not_found"
+          - };                                                           
+      147 -    result.click();                                           
+      148 -    const onPlace = await waitFor(                            
+      149 -      () => (/\/maps\/place\//.test(location.href) ? true : nu
+          -ll),                                                          
+      150 -      8000,                                                   
+      151 -    );                                                        
+      152 -    if (!onPlace) return { ok: false, reason: "place_not_found
+          -" };                                                          
+      153 -  }                                                           
+      154 -  await sleep(600);                                           
+      105 +  // Verify the place-search input appeared (either after "Nex
+          +t" or on the same screen).                                    
+      106 +  const placeSearch = await waitFor(                          
+      107 +    () =>                                                     
+      108 +      document.querySelector<HTMLInputElement>(               
+      109 +        'input[aria-label="Search for a place to add"]',      
+      110 +      ),                                                      
+      111 +    6000,                                                     
+      112 +  );                                                          
+      113 +  if (!placeSearch) return { ok: false, reason: "place_search_
+          +not_found" };                                                 
+      114  
+      156 -  // 1. Save button on the place panel.                       
+      157 -  const saveFound = await waitFor(findSaveButton, 9000);      
+      158 -  if (!saveFound) {                                           
+      159 -    return { ok: false, reason: detectLoginWall() ? "not_logge
+          -d_in" : "no_save_button" };                                   
+      115 +  return { ok: true, reason: "ready" };                       
+      116 +}                                                             
+      117 +                                                              
+      118 +// ─── Phase 2 ───────────────────────────────────────────────
+          +──────────────────                                            
+      119 +                                                              
+      120 +/** Type one place query into "Search for a place to add" and 
+          +click the first result. */                                    
+      121 +export async function addPlaceToList(name: string, address: st
+          +ring): Promise<AddPlaceResult> {                              
+      122 +  const sleep = (ms: number) => new Promise<void>((r) => setTi
+          +meout(r, ms));                                                
+      123 +                                                              
+      124 +  async function waitFor<T>(                                  
+      125 +    get: () => T | null | undefined,                          
+      126 +    timeoutMs: number,                                        
+      127 +    intervalMs = 200,                                         
+      128 +  ): Promise<T | null> {                                      
+      129 +    const deadline = Date.now() + timeoutMs;                  
+      130 +    for (;;) {                                                
+      131 +      const v = get();                                        
+      132 +      if (v) return v;                                        
+      133 +      if (Date.now() > deadline) return null;                 
+      134 +      await sleep(intervalMs);                                
+      135 +    }                                                         
+      136    }
+      161 -  // Re-query immediately before click to avoid stale referenc
+          -e after SPA re-render.                                        
+      162 -  const saveBtn = findSaveButton();                           
+      163 -  if (!saveBtn) return { ok: false, reason: detectLoginWall() 
+          -? "not_logged_in" : "no_save_button" };                       
+      164 -  saveBtn.click();                                            
+      137  
+      166 -  // 2. The save popup with the lists. Maps keeps several hidd
+          -en [role="menu"]                                              
+      167 -  // nodes in the DOM, so scoping to "the menu" locked onto th
+          -e wrong/hidden one                                            
+      168 -  // (that was the real "list not found" bug). Instead scan th
+          -e whole document                                              
+      169 -  // for *visible* rows — the only ones shown are the open sav
+          -e popup's.                                                    
+      170 -  const itemsAll = () =>                                      
+      171 -    Array.from(                                               
+      172 -      document.querySelectorAll<HTMLElement>(                 
+      173 -        '[role="menuitemcheckbox"], [role="menuitemradio"], [r
+          -ole="menuitem"]',                                             
+      174 -      ),                                                      
+      175 -    ).filter(visible);                                        
+      138 +  const visible = (el: Element | null | undefined): boolean =>
+      139 +    !!el && (el as HTMLElement).offsetParent !== null;        
+      140  
+      177 -  // The "New list" entry; existing saved lists render as menu
+          -itemcheckbox rows.                                            
+      178 -  const newListEntry = () =>                                  
+      179 -    itemsAll().find((n) => /new list|create.*list/i.test(n.tex
+          -tContent || "")) ??                                           
+      180 -    findByText('button,[role="menuitem"],[role="menuitemradio"
+          -]', /new list/i);                                             
+      141 +  function setNativeValue(el: HTMLInputElement | HTMLTextAreaE
+          +lement, value: string) {                                      
+      142 +    const proto =                                             
+      143 +      el instanceof HTMLTextAreaElement                       
+      144 +        ? HTMLTextAreaElement.prototype                       
+      145 +        : HTMLInputElement.prototype;                         
+      146 +    const setter = Object.getOwnPropertyDescriptor(proto, "val
+          +ue")?.set;                                                    
+      147 +    el.focus();                                               
+      148 +    if (setter) setter.call(el, value);                       
+      149 +    else el.value = value;                                    
+      150 +    el.dispatchEvent(new Event("input", { bubbles: true }));  
+      151 +    el.dispatchEvent(new Event("change", { bubbles: true })); 
+      152 +  }                                                           
+      153  
+      182 -  const popupReady = await waitFor(() => {                    
+      183 -    const hasCheckbox = itemsAll().some(                      
+      184 -      (n) => n.getAttribute("role") === "menuitemcheckbox",   
+      185 -    );                                                        
+      186 -    return hasCheckbox || newListEntry() ? true : null;       
+      187 -  }, 6000);                                                   
+      188 -  if (!popupReady) {                                          
+      189 -    return { ok: false, reason: detectLoginWall() ? "not_logge
+          -d_in" : "menu_not_found" };                                   
+      154 +  const searchInput = document.querySelector<HTMLInputElement>
+          +(                                                             
+      155 +    'input[aria-label="Search for a place to add"]',          
+      156 +  );                                                          
+      157 +  if (!searchInput || !visible(searchInput)) {                
+      158 +    return { ok: false, reason: "search_input_not_found" };   
+      159    }
+      191 -  await sleep(300);                                           
+      160  
+      193 -  const closeMenu = () =>                                     
+      194 -    document.body.dispatchEvent(                              
+      195 -      new KeyboardEvent("keydown", { key: "Escape", bubbles: t
+          -rue }),                                                       
+      196 -    );                                                        
+      161 +  const query = [name, address].filter(Boolean).join(", ");   
+      162 +  setNativeValue(searchInput, query);                         
+      163 +  // Dispatch a keydown so Maps' jsaction handler fires the au
+          +tocomplete request.                                           
+      164 +  searchInput.dispatchEvent(                                  
+      165 +    new KeyboardEvent("keydown", { key: " ", bubbles: true }),
+      166 +  );                                                          
+      167 +  await sleep(700);                                           
+      168  
+      198 -  if (isFirst) {                                              
+      199 -    // 3a. Create a new list named listName.                  
+      200 -    const newListItem = newListEntry();                       
+      201 -    if (!newListItem) return { ok: false, reason: "new_list_op
+          -tion_not_found" };                                            
+      202 -    newListItem.click();                                      
+      169 +  // The combobox declares aria-controls pointing at the resul
+          +ts grid.                                                      
+      170 +  const gridId = searchInput.getAttribute("aria-controls");   
+      171  
+      204 -    const input = await waitFor(                              
+      205 -      () =>                                                   
+      206 -        document.querySelector<HTMLInputElement>(             
+      207 -          'input[type="text"]:not([readonly]), textarea',     
+      208 -        ),                                                    
+      209 -      5000,                                                   
+      210 -    );                                                        
+      211 -    if (!input) return { ok: false, reason: "name_input_not_fo
+          -und" };                                                       
+      212 -    setNativeValue(input, listName);                          
+      213 -    await sleep(150);                                         
+      172 +  const findGrid = (): HTMLElement | null => {                
+      173 +    if (gridId) {                                             
+      174 +      const el = document.getElementById(gridId);             
+      175 +      if (el && visible(el)) return el;                       
+      176 +    }                                                         
+      177 +    // Fallback: any visible grid/listbox that appeared after 
+          +the input.                                                    
+      178 +    const el = document.querySelector<HTMLElement>('[role="gri
+          +d"], [role="listbox"]');                                      
+      179 +    return el && visible(el) ? el : null;                     
+      180 +  };                                                          
+      181  
+      215 -    const createBtn = await waitFor(                          
+      216 -      () => findByText("button", /^\s*(create|save)\s*$/i),   
+      217 -      4000,                                                   
+      218 -    );                                                        
+      219 -    if (!createBtn) return { ok: false, reason: "create_button
+          -_not_found" };                                                
+      220 -    // Re-query before click.                                 
+      221 -    const freshCreateBtn = findByText("button", /^\s*(create|s
+          -ave)\s*$/i);                                                  
+      222 -    if (!freshCreateBtn) return { ok: false, reason: "create_b
+          -utton_not_found" };                                           
+      223 -    freshCreateBtn.click();                                   
+      224 -    await sleep(800);                                         
+      225 -    closeMenu();                                              
+      226 -    return { ok: true, reason: "created" };                   
+      227 -  }                                                           
+      182 +  const grid = await waitFor(findGrid, 5000);                 
+      183 +  if (!grid) return { ok: false, reason: "no_results" };      
+      184  
+      229 -  // 3b. Toggle on the existing list by name (skip if already 
+          -checked).                                                     
+      230 -  const target = await waitFor(                               
+      231 -    () => itemsAll().find((n) => norm(n.textContent).includes(
+          -norm(listName))) ?? null,                                     
+      232 -    6000,                                                     
+      185 +  const firstResult = grid.querySelector<HTMLElement>(        
+      186 +    '[role="row"]:first-child, [role="option"]:first-child, li
+          +:first-child',                                                
+      187    );
+      234 -  if (!target) {                                              
+      235 -    closeMenu();                                              
+      236 -    return { ok: false, reason: "list_item_not_found" };      
+      237 -  }                                                           
+      188 +  if (!firstResult || !visible(firstResult)) return { ok: fals
+          +e, reason: "no_results" };                                    
+      189  
+      239 -  if (target.getAttribute("aria-checked") === "true") {       
+      240 -    closeMenu();                                              
+      241 -    return { ok: true, reason: "already_in_list" };           
+      242 -  }                                                           
+      243 -  target.click();                                             
+      244 -  await sleep(500);                                           
+      245 -  closeMenu();                                                
+      246 -  return { ok: true, reason: "saved" };                       
+      190 +  firstResult.click();                                        
+      191 +                                                              
+      192 +  // Wait for the input to clear — Maps empties it after a pla
+          +ce is accepted.                                               
+      193 +  await waitFor(() => (searchInput.value === "" ? true : null)
+          +, 3000);                                                      
+      194 +  await sleep(300);                                           
+      195 +                                                              
+      196 +  return { ok: true, reason: "added" };                       
+      197  }
+      198 +                                                              
+      199 +// ─── Phase 3 ───────────────────────────────────────────────
+          +──────────────────                                            
+      200 +                                                              
+      201 +/** Click Done to commit the list. */                         
+      202 +export async function finishList(): Promise<void> {           
+      203 +  const visible = (el: Element | null | undefined): boolean =>
+      204 +    !!el && (el as HTMLElement).offsetParent !== null;        
+      205 +                                                              
+      206 +  const doneBtn =                                             
+      207 +    document.querySelector<HTMLElement>("button.pktOgc") ??   
+      208 +    Array.from(document.querySelectorAll<HTMLElement>("button"
+          +)).find(                                                      
+      209 +      (b) => /^\s*done\s*$/i.test(b.textContent || "") && visi
+          +ble(b),                                                       
+      210 +    ) ??                                                      
+      211 +    null;                                                     
+      212 +                                                              
+      213 +  doneBtn?.click();                                           
+      214 +}                                                             
+
+⏺ Now update the service worker to use the three-phase approach:
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Update(src/background/service-worker.ts)
+  ⎿  Added 2 lines, removed 1 line
+      1  import { extractLocations } from "../lib/triton";
+      2  import { geocodeMany } from "../lib/places";
+      3  import { addPins } from "../lib/pin-store";
+      4 -import { navigateAndSave } from "../lib/gmaps-automation";      
+      4 +import { setupList, addPlaceToList, finishList } from "../lib/gm
+        +aps-automation";                                                
+      5 +import type { SetupListResult, AddPlaceResult } from "../lib/gma
+        +ps-automation";                                                 
+      6  import type {
+      7    ExtractedLocation,
+      8    GmapsFailure,
+
+⏺ Now replace reasonToMessage with the new codes and rewrite handleSendToGmaps:
+
+⏺ Update(src/background/service-worker.ts)
+  ⎿  Added 9 lines, removed 13 lines
+      116    switch (reason) {
+      117      case "not_logged_in":
+      118        return "Please log into Google Maps first, then try agai
+           n.";
+      119 -    case "no_save_button":                                    
+      120 -      return "Couldn't find the Save button (Maps UI may have 
+          -changed).";                                                   
+      121 -    case "menu_not_found":                                    
+      122 -      return "The lists menu didn't open.";                   
+      123 -    case "list_item_not_found":                               
+      124 -      return "Couldn't find the target list in the menu.";    
+      125 -    case "search_box_not_found":                              
+      126 -      return "Couldn't find the Google Maps search box.";     
+      127 -    case "place_not_found":                                   
+      128 -      return "Couldn't find this place on Google Maps.";      
+      129 -    case "new_list_option_not_found":                         
+      119 +    case "new_list_button_not_found":                         
+      120 +      return "Couldn't find the New List button (Maps UI may h
+          +ave changed).";                                               
+      121      case "name_input_not_found":
+      131 -    case "create_button_not_found":                           
+      132 -      return "Couldn't create the new list.";                 
+      122 +      return "Couldn't find the list name input.";            
+      123 +    case "place_search_not_found":                            
+      124 +      return "Couldn't open the place search field after creat
+          +ing the list.";                                               
+      125 +    case "search_input_not_found":                            
+      126 +      return "Place search field disappeared (try again).";   
+      127 +    case "no_results":                                        
+      128 +      return "No search results found for this place.";       
+      129      default:
+      130        return reason;
+      131    }
+
+⏺ Update(src/background/service-worker.ts)
+  ⎿  Added 27 lines, removed 30 lines
+      139  
+      140    let tab: chrome.tabs.Tab;
+      141    try {
+      142 -    tab = await chrome.tabs.create({ url: "https://www.google.
+          -com/maps", active: true });                                   
+      142 +    // Open the Saved Places page so the "New list" button is 
+          +immediately available.                                        
+      143 +    tab = await chrome.tabs.create({ url: "https://www.google.
+          +com/maps/saved/", active: true });                            
+      144      if (!tab.id) throw new Error("Could not open a Google Maps
+            tab");
+      145      await waitForTabLoad(tab.id);
+      145 -    // Maps is a SPA that keeps rendering after the browser fi
+          -res "complete".                                               
+      146 -    // Give it a moment to boot the search box before driving 
+          -it.                                                           
+      147 -    await new Promise((r) => setTimeout(r, 1500));            
+      146 +    await new Promise((r) => setTimeout(r, 1800));            
+      147    } catch (err) {
+      148      return { ok: false, error: String(err instanceof Error ? e
+           rr.message : err) };
+      149    }
+      150    const tabId = tab.id;
+      151  
+      153 -  const runSave = async (pin: Pin, isFirst: boolean) => {     
+      154 -    const [injection] = await chrome.scripting.executeScript({
+      155 -      target: { tabId },                                      
+      156 -      func: navigateAndSave,                                  
+      157 -      args: [pin.name, pin.address, listName, isFirst],       
+      158 -    });                                                       
+      159 -    return injection?.result as { ok: boolean; reason: string 
+          -} | undefined;                                                
+      160 -  };                                                          
+      152 +  // Phase 1: create the list and arrive at the "Search for a 
+          +place to add" screen.                                         
+      153 +  const [setupInjection] = await chrome.scripting.executeScrip
+          +t({                                                           
+      154 +    target: { tabId },                                        
+      155 +    func: setupList,                                          
+      156 +    args: [listName],                                         
+      157 +  });                                                         
+      158 +  const setupResult = setupInjection?.result as SetupListResul
+          +t | undefined;                                                
+      159 +  if (!setupResult?.ok) {                                     
+      160 +    const reason = setupResult?.reason ?? "unknown";          
+      161 +    return { ok: false, error: reasonToMessage(reason) };     
+      162 +  }                                                           
+      163  
+      164 +  // Phase 2: add each place via the search combobox, reportin
+          +g progress per pin.                                           
+      165    let saved = 0;
+      163 -  let listCreated = false;                                    
+      166    const failed: GmapsFailure[] = [];
+      167  
+      166 -  // The tab is navigated ONCE above; each pin moves Maps in-S
+          -PA via its search                                             
+      167 -  // box (no per-place reload), so the transition between plac
+          -es is continuous.                                             
+      168 -  // The first successful place creates the list; the rest tic
+          -k that same list.                                             
+      168    for (let i = 0; i < pins.length; i++) {
+      169      const pin = pins[i];
+      170      try {
+      172 -      let result = await runSave(pin, !listCreated);          
+      173 -      // A single search can transiently land on a results lis
+          -t or miss — retry once.                                       
+      174 -      if (!result?.ok && result?.reason === "place_not_found")
+          - {                                                            
+      175 -        result = await runSave(pin, !listCreated);            
+      176 -      }                                                       
+      171 +      const [addInjection] = await chrome.scripting.executeScr
+          +ipt({                                                         
+      172 +        target: { tabId },                                    
+      173 +        func: addPlaceToList,                                 
+      174 +        args: [pin.name, pin.address],                        
+      175 +      });                                                     
+      176 +      const addResult = addInjection?.result as AddPlaceResult
+          + | undefined;                                                 
+      177  
+      178 -      if (result?.ok) {                                       
+      178 +      if (addResult?.ok) {                                    
+      179          saved++;
+      180 -        if (result.reason === "created") listCreated = true;  
+      180        } else {
+      182 -        const reason = result?.reason ?? "unknown";           
+      183 -        // A login wall blocks every remaining pin — stop earl
+          -y with a clear message.                                       
+      184 -        if (reason === "not_logged_in") {                     
+      185 -          return { ok: false, error: reasonToMessage(reason) }
+          -;                                                             
+      186 -        }                                                     
+      187 -        failed.push({ name: pin.name, reason: reasonToMessage(
+          -reason) });                                                   
+      181 +        failed.push({ name: pin.name, reason: reasonToMessage(
+          +addResult?.reason ?? "unknown") });                           
+      182        }
+      183      } catch (err) {
+      184        failed.push({ name: pin.name, reason: String(err instanc
+           eof Error ? err.message : err) });
+     ...
+      187      chrome.runtime
+      188        .sendMessage({ type: "GMAPS_PROGRESS", done: i + 1, tota
+           l: pins.length, name: pin.name })
+      189        .catch(() => {});
+      196 -    await new Promise((r) => setTimeout(r, 800));             
+      190 +    await new Promise((r) => setTimeout(r, 600));             
+      191    }
+      192  
+      193 +  // Phase 3: commit the list.                                
+      194 +  await chrome.scripting.executeScript({ target: { tabId }, fu
+          +nc: finishList, args: [] });                                  
+      195 +                                                              
+      196    return { ok: true, saved, failed };
+      197  }
+      198  
+
+⏺ Let me verify the final state of both files looks correct:
+
+  Read 1 file (ctrl+o to expand)
+
+⏺ Good. Now let me do a quick type-check to make sure everything compiles:
+
+⏺ Bash(npx tsc --noEmit 2>&1)
+  ⎿  (No output)
+
+⏺ Clean. Here's what changed and why the new flow is better:
+
+  Old flow (per-place):
+  - Navigate to each place → click Save → fight the popup menu → isFirst
+  branching to create or find the list
+
+  New flow (list-first, 3 phases):
+  1. setupList — open /maps/saved/, click "New list", type name, click Next,
+  wait for input[aria-label="Search for a place to add"]
+  2. addPlaceToList (once per place) — type query, wait for the results grid
+  (aria-controls → grid id), click first result, wait for input to auto-clear
+  3. finishList — click button.pktOgc (Done)
+
+  Key improvements:
+  - No more isFirst / list-creation vs list-selection branching
+  - No Save-button popup navigation (much less fragile)
+  - The place-search combobox is purpose-built for batch adding — it clears
+  automatically after each selection
+  - Progress reporting still works per-place (Phase 2 loop sends GMAPS_PROGRESS
+  after each pin)
+  - If the "New list" button or any step can't be found, it fails fast before
+  touching any places
+
+  The one thing to watch when testing: Maps may need a keydown event beyond the
+  input event to trigger autocomplete in the combobox — there's a " " keydown
+  dispatched after setNativeValue for that. If results don't appear, that's the
+  tuning knob.
+
+✻ Cooked for 8m 6s

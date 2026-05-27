@@ -8,9 +8,10 @@ See [`Proposal.md`](./Proposal.md) for the full pitch and roadmap.
 
 1. You're reading a travel post (Reddit, blog, listicle).
 2. Click the PinBoard Clipper toolbar icon to open the side panel (it docks to the side of the browser, doesn't cover the page). Pick (or create) the list you want to save into — the active list is highlighted in the pill row at the top.
-3. **Scan this page for locations**. The extension reads the page text, asks TritonAI to extract specific named places, geocodes each one via Google Places API, and drops them as pins on a Leaflet map inside the side panel. New pins are tagged with the active list.
+3. **Scan this page for locations**. The extension reads the page text, asks TritonAI to extract specific named places (with city/region context for accurate geocoding), geocodes each one via Google Places API, and drops them as category-tagged pins on a Leaflet map inside the side panel. New pins are tagged with the active list.
 4. Switch lists at any time to view a different collection on the map. A pin can belong to multiple lists (re-pinning into a different list just adds the tag), and the map always shows the active list only.
-5. Pins persist across browser sessions in `chrome.storage.local`. The side panel stays open while you browse from post to post.
+5. **Export** the active list as a `.kml` file for import into Google Maps or other tools.
+6. Pins persist across browser sessions in `chrome.storage.local`. The side panel stays open while you browse from post to post.
 
 ## Tech stack
 
@@ -94,6 +95,8 @@ See [`Proposal.md`](./Proposal.md#after-first-deliverable-goals) for full list. 
 - "Clip Pin" from selected text (single-pin shortcut)
 - Screenshot-based extraction for image-heavy posts
 - ~~Pin collections (Food, Attractions, Nightlife)~~ — shipped
+- ~~City/region context for accurate geocoding~~ — shipped
+- ~~Export active list as `.kml`~~ — shipped
 - Source preview on pin click
 - Export pins to a Google Maps list
 

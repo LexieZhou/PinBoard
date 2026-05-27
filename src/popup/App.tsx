@@ -13,6 +13,8 @@ import {
 } from "../lib/pin-store";
 import type {
   ExtractedLocation,
+  GmapsFailure,
+  GmapsSendResponse,
   List,
   PageContent,
   Pin,
@@ -27,6 +29,8 @@ type Phase =
   | { kind: "preview"; locations: ExtractedLocation[]; pageContent: PageContent; selected: Set<number> }
   | { kind: "pinning" }
   | { kind: "done"; addedCount: number }
+  | { kind: "sending"; done: number; total: number; name: string }
+  | { kind: "sentResult"; saved: number; failed: GmapsFailure[] }
   | { kind: "error"; message: string };
 
 export default function App() {
@@ -37,6 +41,25 @@ export default function App() {
 
   useEffect(() => {
     loadStore().then(applyStore);
+  }, []);
+
+  useEffect(() => {
+    const listener = (msg: unknown) => {
+      if (
+        typeof msg === "object" &&
+        msg !== null &&
+        (msg as { type?: string }).type === "GMAPS_PROGRESS"
+      ) {
+        const m = msg as { done: number; total: number; name: string };
+        setPhase((prev) =>
+          prev.kind === "sending"
+            ? { kind: "sending", done: m.done, total: m.total, name: m.name }
+            : prev,
+        );
+      }
+    };
+    chrome.runtime.onMessage.addListener(listener);
+    return () => chrome.runtime.onMessage.removeListener(listener);
   }, []);
 
   function applyStore(s: Store) {
@@ -136,14 +159,27 @@ export default function App() {
     setPhase({ kind: "idle" });
   }
 
+  async function handleSendToGmaps() {
+    if (!activeList || visiblePins.length === 0) return;
+    setPhase({ kind: "sending", done: 0, total: visiblePins.length, name: "" });
+    const resp = (await chrome.runtime.sendMessage({
+      type: "SEND_TO_GMAPS",
+      pins: visiblePins,
+      listName: activeList.name,
+    })) as GmapsSendResponse;
+    if (!resp.ok) {
+      setPhase({ kind: "error", message: resp.error });
+      return;
+    }
+    setPhase({ kind: "sentResult", saved: resp.saved, failed: resp.failed });
+  }
+
   return (
     <div className="flex flex-col h-screen w-full min-w-[320px] bg-white text-zinc-900">
       <header className="shrink-0 flex items-center justify-between px-3 py-2 border-b border-zinc-200">
         <div className="flex items-center gap-2">
-          <div className="size-6 rounded-md bg-gradient-to-br from-rose-500 to-orange-400" />
           <div>
-            <div className="text-sm font-semibold leading-none">PinBoard Clipper</div>
-            <div className="text-[11px] text-zinc-500 mt-0.5">
+            <div className="text-[11px] text-zinc-500">
               {pins.length} pin{pins.length === 1 ? "" : "s"} · {lists.length} list
               {lists.length === 1 ? "" : "s"}
             </div>
@@ -152,9 +188,17 @@ export default function App() {
         {visiblePins.length > 0 && (
           <div className="flex items-center gap-3">
             <button
+              onClick={handleSendToGmaps}
+              disabled={phase.kind === "sending"}
+              className="text-[11px] font-medium text-emerald-600 hover:text-emerald-700 disabled:text-zinc-300"
+              title="Auto-save these pins to a Google Maps list (opens Google Maps)"
+            >
+              → Google Maps
+            </button>
+            <button
               onClick={() => exportKML(visiblePins, activeList?.name ?? "pins")}
               className="text-[11px] text-zinc-400 hover:text-blue-500"
-              title="Export as KML for Google Maps"
+              title="Export as KML for Google My Maps"
             >
               export .kml
             </button>
@@ -228,6 +272,64 @@ function ActionPanel({
 
   if (phase.kind === "pinning") {
     return <StatusRow label="Geocoding and saving pins…" spinning />;
+  }
+
+  if (phase.kind === "sending") {
+    const pct = phase.total > 0 ? Math.round((phase.done / phase.total) * 100) : 0;
+    return (
+      <div className="p-3">
+        <div className="mb-2 flex items-center gap-2 text-xs text-zinc-600">
+          <span className="inline-block size-3 rounded-full border-2 border-zinc-300 border-t-emerald-500 animate-spin" />
+          Saving to Google Maps… {phase.done}/{phase.total}
+        </div>
+        <div className="h-1.5 w-full overflow-hidden rounded-full bg-zinc-100">
+          <div
+            className="h-full bg-emerald-500 transition-all"
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        {phase.name && (
+          <div className="mt-1.5 truncate text-[10px] text-zinc-400">{phase.name}</div>
+        )}
+        <div className="mt-2 text-[10px] text-zinc-400">
+          Watch the Google Maps tab — keep it open until this finishes.
+        </div>
+      </div>
+    );
+  }
+
+  if (phase.kind === "sentResult") {
+    return (
+      <div className="p-3">
+        <div className="mb-2 flex items-start justify-between gap-2 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs text-emerald-800">
+          <span>
+            Saved {phase.saved} place{phase.saved === 1 ? "" : "s"} to your Google Maps list.
+          </span>
+          <button
+            onClick={onReset}
+            className="shrink-0 text-emerald-700/60 hover:text-emerald-900"
+            title="Dismiss"
+            aria-label="Dismiss"
+          >
+            ✕
+          </button>
+        </div>
+        {phase.failed.length > 0 && (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-2 text-[11px] text-amber-800">
+            <div className="mb-1 font-semibold">
+              {phase.failed.length} couldn't be saved — try again, or use export .kml.
+            </div>
+            <ul className="space-y-0.5">
+              {phase.failed.slice(0, 8).map((f, i) => (
+                <li key={`${f.name}-${i}`} className="truncate">
+                  • {f.name} <span className="text-amber-600">({f.reason})</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    );
   }
 
   if (phase.kind === "error") {
