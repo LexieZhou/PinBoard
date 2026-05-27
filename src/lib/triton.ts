@@ -1,7 +1,8 @@
 import type { ExtractedLocation, PlaceCategory } from "./types";
+import { LLMClient } from "./llm-client";
 
-const TRITON_BASE = "https://tritonai-api.ucsd.edu/v1";
-const MODEL = "api-gpt-oss-120b";
+const TEXT_MODEL = "api-gpt-oss-120b";
+const VISION_MODEL = "claude-sonnet-4-6";
 
 const SYSTEM_PROMPT = `You extract specific named geographic places from travel content.
 Return JSON ONLY in this exact shape: {"places": [{"name": string, "context": string, "region": string, "category": string}]}.
@@ -10,49 +11,64 @@ Rules:
 - Include only SPECIFIC named places: restaurants, cafes, shops, hotels, landmarks, parks, museums, beaches, viewpoints.
 - EXCLUDE generic terms ("the park", "downtown", "the airport") unless they appear as proper nouns ("Central Park").
 - EXCLUDE cities/countries used only as broad context ("trip to Japan") — but DO include them if they are the subject of a recommendation.
-- "context" is a short snippet (<=120 chars) from the source text that mentions or describes the place.
+- "name" and "region" MUST be in ENGLISH. If the source text is in another language, translate or transliterate to the canonical English name that Google Maps would recognize (e.g. Chinese "故宫" → "Forbidden City"). This applies even when the surrounding page is non-English.
+- "context" is a short snippet (<=120 chars) from the source text that mentions or describes the place. Keep "context" in the ORIGINAL source language (do not translate it).
 - "region" is the city and country where this specific place is located, inferred from the surrounding text (e.g. "Shibuya, Tokyo, Japan" or "Brooklyn, New York, USA"). Use the most specific geographic scope you can confidently infer. If truly unknown, use "".
 - "category" must be exactly one of: "food" (restaurants, cafes, bars, food markets, street food), "hotel" (hotels, hostels, ryokans, guesthouses, resorts), "attraction" (landmarks, museums, parks, beaches, temples, viewpoints, shops), or "other" (anything that doesn't fit).
 - If there are no specific places, return {"places": []}.
 - Do NOT invent places that aren't in the text.`;
-
-type TritonResponse = {
-  choices: Array<{ message: { content: string } }>;
-};
 
 export async function extractLocations(
   pageText: string,
   pageTitle: string,
   apiKey: string,
 ): Promise<ExtractedLocation[]> {
-  if (!apiKey) throw new Error("Missing VITE_TRITON_API_KEY");
-
   const trimmed = pageText.slice(0, 12000);
   const userPrompt = `Page title: ${pageTitle}\n\nPage content:\n${trimmed}`;
 
-  const resp = await fetch(`${TRITON_BASE}/chat/completions`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      temperature: 0.1,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userPrompt },
-      ],
-    }),
+  const client = new LLMClient(apiKey);
+  const raw = await client.chat({
+    model: TEXT_MODEL,
+    temperature: 0.1,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      { role: "user", content: userPrompt },
+    ],
   });
+  return parsePlacesJson(raw);
+}
 
-  if (!resp.ok) {
-    const body = await resp.text().catch(() => "");
-    throw new Error(`TritonAI ${resp.status}: ${body.slice(0, 200)}`);
-  }
+// Vision-mode extractor: same system prompt, same output schema, so the rest of
+// the pipeline (preview → geocode → pin) doesn't need to know whether the
+// locations came from text or pixels. Used for image-heavy posts (Xiaohongshu,
+// IG screenshots, photo grids) where DOM text yields nothing.
+export async function extractLocationsFromImage(
+  imageDataUrl: string,
+  pageTitle: string,
+  apiKey: string,
+): Promise<ExtractedLocation[]> {
+  const userText =
+    `Page title: ${pageTitle}\n\n` +
+    `Look at this screenshot from a travel-related page and extract specific named places. ` +
+    `For "context", use OCR'd captions/text visible in the image if any; otherwise a short visual description ` +
+    `(e.g. "red torii gate by the sea"). All other rules in the system prompt still apply.`;
 
-  const data = (await resp.json()) as TritonResponse;
-  const raw = data.choices?.[0]?.message?.content ?? "";
+  const client = new LLMClient(apiKey);
+  const raw = await client.chat({
+    model: VISION_MODEL,
+    temperature: 0.1,
+    maxTokens: 2048,
+    messages: [
+      { role: "system", content: SYSTEM_PROMPT },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: userText },
+          { type: "image_url", image_url: { url: imageDataUrl } },
+        ],
+      },
+    ],
+  });
   return parsePlacesJson(raw);
 }
 

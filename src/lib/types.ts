@@ -48,13 +48,20 @@ export type GeocodedLocation = ExtractedLocation & {
 
 export type RuntimeMessage =
   | { type: "SCAN_ACTIVE_TAB" }
+  | { type: "SCAN_VISIBLE_AREA" }
   | {
       type: "GEOCODE_AND_PIN";
       locations: ExtractedLocation[];
       pageContent: PageContent;
       targetListId: string;
     }
-  | { type: "SEND_TO_GMAPS"; pins: Pin[]; listName: string };
+  | { type: "SEND_TO_GMAPS"; pins: Pin[]; listName: string }
+  | {
+      type: "CLIP_PIN";
+      selectedText: string;
+      pageUrl: string;
+      pageTitle: string;
+    };
 
 export type ScanResponse =
   | { ok: true; result: ScanResult }
@@ -62,6 +69,10 @@ export type ScanResponse =
 
 export type PinResponse =
   | { ok: true; pins: Pin[] }
+  | { ok: false; error: string };
+
+export type ClipPinResponse =
+  | { ok: true; addedCount: number; firstName: string; listName: string }
   | { ok: false; error: string };
 
 export type GmapsFailure = { name: string; reason: string };

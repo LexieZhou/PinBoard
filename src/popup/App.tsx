@@ -23,9 +23,11 @@ import type {
 } from "../lib/types";
 import { CATEGORY_CONFIG } from "../lib/categories";
 
+type ScanMode = "text" | "vision";
+
 type Phase =
   | { kind: "idle" }
-  | { kind: "scanning" }
+  | { kind: "scanning"; mode: ScanMode }
   | { kind: "preview"; locations: ExtractedLocation[]; pageContent: PageContent; selected: Set<number> }
   | { kind: "pinning" }
   | { kind: "done"; addedCount: number }
@@ -41,6 +43,26 @@ export default function App() {
 
   useEffect(() => {
     loadStore().then(applyStore);
+  }, []);
+
+  useEffect(() => {
+    // Auto-refresh when the content script clips a pin (or anything else
+    // mutates storage) so the side panel stays in sync without re-opening.
+    const onChanged = (
+      changes: Record<string, chrome.storage.StorageChange>,
+      area: chrome.storage.AreaName,
+    ) => {
+      if (area !== "local") return;
+      if (
+        "pinboard.pins.v1" in changes ||
+        "pinboard.lists.v1" in changes ||
+        "pinboard.activeListId.v1" in changes
+      ) {
+        loadStore().then(applyStore);
+      }
+    };
+    chrome.storage.onChanged.addListener(onChanged);
+    return () => chrome.storage.onChanged.removeListener(onChanged);
   }, []);
 
   useEffect(() => {
@@ -75,15 +97,20 @@ export default function App() {
 
   const activeList = lists.find((l) => l.id === activeListId);
 
-  async function handleScan() {
-    setPhase({ kind: "scanning" });
-    const resp = (await chrome.runtime.sendMessage({ type: "SCAN_ACTIVE_TAB" })) as ScanResponse;
+  async function runScan(mode: ScanMode) {
+    setPhase({ kind: "scanning", mode });
+    const type = mode === "vision" ? "SCAN_VISIBLE_AREA" : "SCAN_ACTIVE_TAB";
+    const resp = (await chrome.runtime.sendMessage({ type })) as ScanResponse;
     if (!resp.ok) {
       setPhase({ kind: "error", message: resp.error });
       return;
     }
     if (resp.result.locations.length === 0) {
-      setPhase({ kind: "error", message: "No specific places found on this page." });
+      const message =
+        mode === "vision"
+          ? "No specific places found in the screenshot. Try scrolling to a different part of the page."
+          : "No specific places found on this page.";
+      setPhase({ kind: "error", message });
       return;
     }
     setPhase({
@@ -93,6 +120,9 @@ export default function App() {
       selected: new Set(resp.result.locations.map((_, i) => i)),
     });
   }
+
+  const handleScan = () => runScan("text");
+  const handleScanVision = () => runScan("vision");
 
   async function handlePin() {
     if (phase.kind !== "preview" || !activeListId) return;
@@ -232,6 +262,7 @@ export default function App() {
           pins={visiblePins}
           activeListName={activeList?.name ?? ""}
           onScan={handleScan}
+          onScanVision={handleScanVision}
           onPin={handlePin}
           onToggle={toggleSelected}
           onRemove={handleRemoveFromList}
@@ -247,6 +278,7 @@ function ActionPanel({
   pins,
   activeListName,
   onScan,
+  onScanVision,
   onPin,
   onToggle,
   onRemove,
@@ -256,6 +288,7 @@ function ActionPanel({
   pins: Pin[];
   activeListName: string;
   onScan: () => void;
+  onScanVision: () => void;
   onPin: () => void;
   onToggle: (i: number) => void;
   onRemove: (id: string) => void;
@@ -267,7 +300,11 @@ function ActionPanel({
   );
 
   if (phase.kind === "scanning") {
-    return <StatusRow label="Reading page and asking TritonAI…" spinning />;
+    const label =
+      phase.mode === "vision"
+        ? "Capturing screenshot and asking Claude…"
+        : "Reading page and asking TritonAI…";
+    return <StatusRow label={label} spinning />;
   }
 
   if (phase.kind === "pinning") {
@@ -419,12 +456,21 @@ function ActionPanel({
           </button>
         </div>
       ) : (
-        <button
-          onClick={onScan}
-          className="w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
-        >
-          Scan this page for locations
-        </button>
+        <div className="space-y-1.5">
+          <button
+            onClick={onScan}
+            className="w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
+          >
+            Scan this page for locations
+          </button>
+          <button
+            onClick={onScanVision}
+            className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+            title="Screenshot the current viewport and extract places with a vision model — useful for image-heavy posts (Xiaohongshu, Instagram screenshots, photo grids)."
+          >
+            📷 Scan visible area (vision)
+          </button>
+        </div>
       )}
 
       {recentPins.length > 0 ? (
