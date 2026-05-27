@@ -2,6 +2,7 @@ import { extractLocations, extractLocationsFromImage } from "../lib/triton";
 import { geocodeMany, geocodeOne } from "../lib/places";
 import { addPins, loadStore } from "../lib/pin-store";
 import { setupList, addPlaceToList, finishList } from "../lib/gmaps-automation";
+import { fetchYoutubeContent, isYoutubeWatchUrl } from "../lib/youtube";
 import type { SetupListResult, AddPlaceResult } from "../lib/gmaps-automation";
 import type {
   ClipPinResponse,
@@ -59,6 +60,24 @@ async function readActiveTabContent(): Promise<PageContent> {
 async function handleScan(): Promise<ScanResponse> {
   try {
     const pageContent = await readActiveTabContent();
+    const locations = await extractLocations(pageContent.text, pageContent.title, TRITON_KEY);
+    return { ok: true, result: { pageContent, locations } };
+  } catch (err) {
+    return { ok: false, error: String(err instanceof Error ? err.message : err) };
+  }
+}
+
+// YouTube scan: skip the DOM (no meaningful text on a watch page) and pull the
+// video's description + auto-captions instead. Output is shaped exactly like
+// readActiveTabContent so downstream preview/pin code stays untouched.
+async function handleYoutubeScan(): Promise<ScanResponse> {
+  try {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (!tab?.id || !tab.url) throw new Error("No active tab");
+    if (!isYoutubeWatchUrl(tab.url)) {
+      throw new Error("Open a YouTube video first.");
+    }
+    const pageContent = await fetchYoutubeContent(tab.id, tab.url);
     const locations = await extractLocations(pageContent.text, pageContent.title, TRITON_KEY);
     return { ok: true, result: { pageContent, locations } };
   } catch (err) {
@@ -324,6 +343,10 @@ chrome.runtime.onMessage.addListener((msg: RuntimeMessage, _sender, sendResponse
   }
   if (msg?.type === "SCAN_VISIBLE_AREA") {
     handleVisionScan().then(sendResponse);
+    return true;
+  }
+  if (msg?.type === "SCAN_YOUTUBE") {
+    handleYoutubeScan().then(sendResponse);
     return true;
   }
   if (msg?.type === "GEOCODE_AND_PIN") {

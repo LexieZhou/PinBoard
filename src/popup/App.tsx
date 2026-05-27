@@ -22,8 +22,9 @@ import type {
   ScanResponse,
 } from "../lib/types";
 import { CATEGORY_CONFIG } from "../lib/categories";
+import { isYoutubeWatchUrl } from "../lib/youtube";
 
-type ScanMode = "text" | "vision";
+type ScanMode = "text" | "vision" | "youtube";
 
 type Phase =
   | { kind: "idle" }
@@ -40,6 +41,7 @@ export default function App() {
   const [lists, setLists] = useState<List[]>([]);
   const [activeListId, setActiveListId] = useState<string>("");
   const [phase, setPhase] = useState<Phase>({ kind: "idle" });
+  const [isYoutubeTab, setIsYoutubeTab] = useState<boolean>(false);
 
   useEffect(() => {
     loadStore().then(applyStore);
@@ -63,6 +65,33 @@ export default function App() {
     };
     chrome.storage.onChanged.addListener(onChanged);
     return () => chrome.storage.onChanged.removeListener(onChanged);
+  }, []);
+
+  useEffect(() => {
+    // Keep the "🎬 Scan YouTube subtitles" button in sync with the active tab.
+    // We listen to onActivated (tab switch) and onUpdated (in-place navigation,
+    // including YouTube's SPA route changes which fire url updates).
+    let cancelled = false;
+    const refresh = async () => {
+      try {
+        const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (!cancelled) setIsYoutubeTab(isYoutubeWatchUrl(tab?.url ?? ""));
+      } catch {
+        if (!cancelled) setIsYoutubeTab(false);
+      }
+    };
+    refresh();
+    const onActivated = () => refresh();
+    const onUpdated = (_id: number, info: chrome.tabs.TabChangeInfo) => {
+      if (info.url || info.status === "complete") refresh();
+    };
+    chrome.tabs.onActivated.addListener(onActivated);
+    chrome.tabs.onUpdated.addListener(onUpdated);
+    return () => {
+      cancelled = true;
+      chrome.tabs.onActivated.removeListener(onActivated);
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+    };
   }, []);
 
   useEffect(() => {
@@ -99,7 +128,12 @@ export default function App() {
 
   async function runScan(mode: ScanMode) {
     setPhase({ kind: "scanning", mode });
-    const type = mode === "vision" ? "SCAN_VISIBLE_AREA" : "SCAN_ACTIVE_TAB";
+    const type =
+      mode === "vision"
+        ? "SCAN_VISIBLE_AREA"
+        : mode === "youtube"
+          ? "SCAN_YOUTUBE"
+          : "SCAN_ACTIVE_TAB";
     const resp = (await chrome.runtime.sendMessage({ type })) as ScanResponse;
     if (!resp.ok) {
       setPhase({ kind: "error", message: resp.error });
@@ -109,7 +143,9 @@ export default function App() {
       const message =
         mode === "vision"
           ? "No specific places found in the screenshot. Try scrolling to a different part of the page."
-          : "No specific places found on this page.";
+          : mode === "youtube"
+            ? "No specific places found in this video's subtitles or description."
+            : "No specific places found on this page.";
       setPhase({ kind: "error", message });
       return;
     }
@@ -123,6 +159,7 @@ export default function App() {
 
   const handleScan = () => runScan("text");
   const handleScanVision = () => runScan("vision");
+  const handleScanYoutube = () => runScan("youtube");
 
   async function handlePin() {
     if (phase.kind !== "preview" || !activeListId) return;
@@ -261,8 +298,10 @@ export default function App() {
           phase={phase}
           pins={visiblePins}
           activeListName={activeList?.name ?? ""}
+          isYoutubeTab={isYoutubeTab}
           onScan={handleScan}
           onScanVision={handleScanVision}
+          onScanYoutube={handleScanYoutube}
           onPin={handlePin}
           onToggle={toggleSelected}
           onRemove={handleRemoveFromList}
@@ -277,8 +316,10 @@ function ActionPanel({
   phase,
   pins,
   activeListName,
+  isYoutubeTab,
   onScan,
   onScanVision,
+  onScanYoutube,
   onPin,
   onToggle,
   onRemove,
@@ -287,8 +328,10 @@ function ActionPanel({
   phase: Phase;
   pins: Pin[];
   activeListName: string;
+  isYoutubeTab: boolean;
   onScan: () => void;
   onScanVision: () => void;
+  onScanYoutube: () => void;
   onPin: () => void;
   onToggle: (i: number) => void;
   onRemove: (id: string) => void;
@@ -303,7 +346,9 @@ function ActionPanel({
     const label =
       phase.mode === "vision"
         ? "Capturing screenshot and asking Claude…"
-        : "Reading page and asking TritonAI…";
+        : phase.mode === "youtube"
+          ? "Pulling YouTube subtitles…"
+          : "Reading page and asking TritonAI…";
     return <StatusRow label={label} spinning />;
   }
 
@@ -461,15 +506,24 @@ function ActionPanel({
             onClick={onScan}
             className="w-full rounded-md bg-zinc-900 px-3 py-2 text-xs font-semibold text-white hover:bg-zinc-800"
           >
-            Scan this page for locations
+            ✏️ Scan this page for locations (text)
           </button>
           <button
             onClick={onScanVision}
             className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
             title="Screenshot the current viewport and extract places with a vision model — useful for image-heavy posts (Xiaohongshu, Instagram screenshots, photo grids)."
           >
-            📷 Scan visible area (vision)
+            📸 Scan visible area (vision)
           </button>
+          {isYoutubeTab && (
+            <button
+              onClick={onScanYoutube}
+              className="w-full rounded-md border border-zinc-200 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+              title="Pull this video's description + auto-captions and extract every place mentioned. Works on travel vlogs and YouTube Shorts."
+            >
+              🎬 Scan YouTube subtitles
+            </button>
+          )}
         </div>
       )}
 

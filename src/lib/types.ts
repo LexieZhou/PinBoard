@@ -49,6 +49,7 @@ export type GeocodedLocation = ExtractedLocation & {
 export type RuntimeMessage =
   | { type: "SCAN_ACTIVE_TAB" }
   | { type: "SCAN_VISIBLE_AREA" }
+  | { type: "SCAN_YOUTUBE" }
   | {
       type: "GEOCODE_AND_PIN";
       locations: ExtractedLocation[];
