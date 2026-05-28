@@ -1,0 +1,56 @@
+[
+  {
+    "name": "San Francisco",
+    "context": "San Francisco — 90%+ Charge",
+    "region": "San Francisco, California, USA",
+    "category": "other"
+  },
+  {
+    "name": "Monterey",
+    "context": "Monterey / Salinas — Charge 15-25 min",
+    "region": "Monterey, California, USA",
+    "category": "other"
+  },
+  {
+    "name": "Salinas",
+    "context": "Monterey / Salinas — Charge 15-25 min",
+    "region": "Salinas, California, USA",
+    "category": "other"
+  },
+  {
+    "name": "San Luis Obispo",
+    "context": "San Luis Obispo / Pismo Beach — Charge 20-30 min",
+    "region": "San Luis Obispo, California, USA",
+    "category": "other"
+  },
+  {
+    "name": "Pismo Beach",
+    "context": "San Luis Obispo / Pismo Beach — Charge 20-30 min",
+    "region": "Pismo Beach, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Big Sur",
+    "context": "Big Sur",
+    "region": "Big Sur, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Santa Barbara",
+    "context": "Santa Barbara — Charge 10-20 min",
+    "region": "Santa Barbara, California, USA",
+    "category": "other"
+  },
+  {
+    "name": "Hollywood",
+    "context": "HOLLYWOOD",
+    "region": "Los Angeles, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Los Angeles",
+    "context": "Los Angeles",
+    "region": "Los Angeles, California, USA",
+    "category": "other"
+  }
+]

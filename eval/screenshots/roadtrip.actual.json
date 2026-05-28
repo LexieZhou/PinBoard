@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Death Valley",
+    "context": "Death Valley",
+    "region": "California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Las Vegas",
+    "context": "Las Vegas",
+    "region": "Nevada, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Zion National Park",
+    "context": "Zion National Park",
+    "region": "Utah, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Bryce Canyon National Park",
+    "context": "Bryce Canyon National Park",
+    "region": "Utah, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Arches National Park",
+    "context": "Arches National Park",
+    "region": "Utah, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Monument Valley",
+    "context": "Monument Valley",
+    "region": "Arizona/Utah, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Horseshoe Bend",
+    "context": "Horseshoe Bend",
+    "region": "Arizona, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Grand Canyon National Park",
+    "context": "Grand Canyon National Park",
+    "region": "Arizona, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Joshua Tree National Park",
+    "context": "Joshua Tree National Park",
+    "region": "California, USA",
+    "category": "attraction"
+  }
+]

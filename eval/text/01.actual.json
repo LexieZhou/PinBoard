@@ -1,0 +1,200 @@
+[
+  {
+    "name": "InterContinental San Diego",
+    "context": "Check-in (Intercontinental SD), relax, freshen up",
+    "region": "San Diego, California, USA",
+    "category": "hotel"
+  },
+  {
+    "name": "Seaport Village",
+    "context": "Explore Waterfront: Seaport Village, Embarcadero",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Embarcadero",
+    "context": "Explore Waterfront: Seaport Village, Embarcadero",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Ballast Point Brewery",
+    "context": "Ballast Point Brewery",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Juniper & Ivy",
+    "context": "Early dinner at Juniper & Ivy (reservations recommended)",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Mom’s Pie House",
+    "context": "Mom’s Pie House",
+    "region": "Julian, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Calico Cidery",
+    "context": "Calico Cidery or Nickel Beer Co.",
+    "region": "Julian, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Nickel Beer Co.",
+    "context": "Calico Cidery or Nickel Beer Co.",
+    "region": "Julian, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Animae",
+    "context": "Dinner at Animae (relaxing end to big day)",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Balboa Park",
+    "context": "Balboa Park (museums, architecture)",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "San Diego Zoo",
+    "context": "San Diego Zoo (spend 2–3 hours max)",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Mission Basilica San Diego de Alcalá",
+    "context": "Mission Basilica San Diego de Alcalá (short visit)",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Tahona Bar",
+    "context": "Tahona Bar (snacks + mezcal)",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Wayfarer Bread Co.",
+    "context": "Wayfarer Bread Co. (La Jolla)",
+    "region": "La Jolla, San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Torrey Pines State Natural Reserve",
+    "context": "Torrey Pines hike (get there early for parking)",
+    "region": "La Jolla, San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Oceanside Pier",
+    "context": "Oceanside pier (quick visit)",
+    "region": "Oceanside, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Campfire",
+    "context": "Dinner at Campfire (Carlsbad)",
+    "region": "Carlsbad, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "USS Midway Museum",
+    "context": "USS Midway Museum",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Tribute Pizza",
+    "context": "Lunch at Tribute Pizza or Buona Forchetta",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Buona Forchetta",
+    "context": "Lunch at Tribute Pizza or Buona Forchetta",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Mission Bay",
+    "context": "Mission Bay chill time or kayak rental",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Belmont Park",
+    "context": "Belmont Park (optional arcade/rides/beach)",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Chicano Park",
+    "context": "Explore Chicano Park murals",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Fish Guts",
+    "context": "Brunch at Fish Guts or Las Cuatro Milpas",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Las Cuatro Milpas",
+    "context": "Brunch at Fish Guts or Las Cuatro Milpas",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Cabrillo National Monument",
+    "context": "Cabrillo National Monument",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Sunset Cliffs",
+    "context": "Sunset Cliffs walk or chill beach time",
+    "region": "San Diego, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Hotel Del Coronado",
+    "context": "Head to Coronado Island (beach or Hotel Del visit)",
+    "region": "Coronado, California, USA",
+    "category": "hotel"
+  },
+  {
+    "name": "Coronado Island",
+    "context": "Head to Coronado Island (beach or Hotel Del visit)",
+    "region": "Coronado, California, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "The Fishery",
+    "context": "Another one worth a look is the Fishery in PB.",
+    "region": "Pacific Beach, San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "North Park Brewing",
+    "context": "North Park Brewing and Pure Project.",
+    "region": "North Park, San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Pure Project",
+    "context": "North Park Brewing and Pure Project.",
+    "region": "North Park, San Diego, California, USA",
+    "category": "food"
+  },
+  {
+    "name": "Mcilhenney",
+    "context": "EPIC brewery called Mcilhenney.",
+    "region": "San Diego, California, USA",
+    "category": "food"
+  }
+]

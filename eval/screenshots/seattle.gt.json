@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Seattle",
+    "context": "START YOUR JOURNEY IN THE EMERALD CITY!",
+    "region": "Washington, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Palouse Falls State Park",
+    "context": "STUNNING 198 FT WATERFALL IN A BASALT CANYON",
+    "region": "Washington, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "#THATNWBUS",
+    "context": "ICONIC SCHOOL BUS CAFE & HANGOUT SPOT",
+    "region": "Washtucna, WA",
+    "category": "food"
+  },
+  {
+    "name": "Potholes State Park",
+    "context": "POTHOLES STATE PARK",
+    "region": "Washington, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Steptoe Butte",
+    "context": "STEPTOE BUTTE 360° VIEWS OF THE PALOUSE REGION",
+    "region": "Washington, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Pullman",
+    "context": "PULLMAN, WA COLLEGE TOWN CHARM & GREAT FOOD!",
+    "region": "Washington, USA",
+    "category": "attraction"
+  }
+]

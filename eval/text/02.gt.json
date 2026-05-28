@@ -1,0 +1,176 @@
+[
+  {
+    "name": "Hotel St James",
+    "context": "Stayed at Hotel St James near Times Square. Quiet, clean and lovely staff",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "hotel"
+  },
+  {
+    "name": "9/11 Memorial & Museum",
+    "context": "Day one: 9/11 museum and empire state",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Empire State Building",
+    "context": "Day one: 9/11 museum and empire state",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Statue of Liberty",
+    "context": "Day two: statue of liberty and ellis island with statue cruises",
+    "region": "New York Harbor, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Ellis Island",
+    "context": "Day two: statue of liberty and ellis island with statue cruises",
+    "region": "New York Harbor, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Carnegie Hall",
+    "context": "followed by Beethoven 5 at Carnegie Hall",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "The Vessel",
+    "context": "Day three: vessel and the edge plus Chelsea market and high line",
+    "region": "Hudson Yards, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Edge NYC",
+    "context": "Day three: vessel and the edge plus Chelsea market and high line",
+    "region": "Hudson Yards, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Chelsea Market",
+    "context": "Day three: vessel and the edge plus Chelsea market and high line",
+    "region": "Chelsea, Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "The High Line",
+    "context": "Day three: vessel and the edge plus Chelsea market and high line",
+    "region": "Chelsea, Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "The Metropolitan Museum of Art",
+    "context": "Day four: Met art gallery and Brooklyn winery wine tasting (five wines)",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Brooklyn Winery",
+    "context": "Day four: Met art gallery and Brooklyn winery wine tasting (five wines)",
+    "region": "Brooklyn, New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "Central Park",
+    "context": "Day five: Central Park and La Boheme at The Met plus a bus tour and tenement museum",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Metropolitan Opera House",
+    "context": "Day five: Central Park and La Boheme at The Met plus a bus tour and tenement museum",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Tenement Museum",
+    "context": "Day five: Central Park and La Boheme at The Met plus a bus tour and tenement museum",
+    "region": "Lower East Side, Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Asbury Park",
+    "context": "Day seven: asbury park and long branch to tick off bruce Springsteen sights",
+    "region": "Asbury Park, New Jersey, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Long Branch",
+    "context": "Day seven: asbury park and long branch to tick off bruce Springsteen sights",
+    "region": "Long Branch, New Jersey, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Birdhouse Jazz Club",
+    "context": "Day eight: jazz club (birdhouse) and MOMA. Chatted to the singer and her husband at the jazz club",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Museum of Modern Art",
+    "context": "Day eight: jazz club (birdhouse) and MOMA.",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "New York Comedy Club",
+    "context": "Also did a comedy club (new york comedy club) and The Rum House jazz club (intimate).",
+    "region": "Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "The Rum House",
+    "context": "Also did a comedy club (new york comedy club) and The Rum House jazz club (intimate).",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "Brooklyn Bridge",
+    "context": "Fitted in Brooklyn Bridge, Grand Central and Times Square into the itinerary as well",
+    "region": "New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Grand Central Terminal",
+    "context": "Fitted in Brooklyn Bridge, Grand Central and Times Square into the itinerary as well",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Times Square",
+    "context": "Fitted in Brooklyn Bridge, Grand Central and Times Square into the itinerary as well",
+    "region": "Midtown Manhattan, New York, USA",
+    "category": "attraction"
+  },
+  {
+    "name": "Zucker's Bagels",
+    "context": "Recommend bagels at Zucker and coffee at Bluebottle plus pizza at Joe's.",
+    "region": "Manhattan, New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "Blue Bottle Coffee",
+    "context": "Recommend bagels at Zucker and coffee at Bluebottle plus pizza at Joe's.",
+    "region": "New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "Joe's Pizza",
+    "context": "Recommend bagels at Zucker and coffee at Bluebottle plus pizza at Joe's.",
+    "region": "Manhattan, New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "Ippudo",
+    "context": "I got obsessed by ramen at Ippudo",
+    "region": "Manhattan, New York, USA",
+    "category": "food"
+  },
+  {
+    "name": "JFK Airport",
+    "context": "I was almost \"scammed\" arriving at the JFK airport.",
+    "region": "Queens, New York, USA",
+    "category": "other"
+  }
+]
